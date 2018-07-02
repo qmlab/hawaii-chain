@@ -7,3 +7,8 @@ message Node {
     string Val = 3;
     int32 Count = 4;
 }
+
+message Tree {
+    Node Root = 1;
+    repeated Node List = 2;
+}

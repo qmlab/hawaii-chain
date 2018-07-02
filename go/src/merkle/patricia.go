@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"merkle/proto"
 	"utils"
+
+	"github.com/gogo/protobuf/proto"
 )
 
 type PatriciaTrie struct {
@@ -23,6 +25,34 @@ func NewPatriciaTrie() *PatriciaTrie {
 // Print will output the trie in dfs order to stdout for debugging
 func (t *PatriciaTrie) Print() {
 	t.printNode(t.Root.Hash, t.ht, 0)
+}
+
+// Serialize converts the trie to a byte array
+func (t *PatriciaTrie) Serialize() ([]byte, error) {
+	nodes := &pb.Tree{
+		Root: t.Root,
+	}
+	for _, n := range t.ht {
+		nodes.List = append(nodes.List, n)
+	}
+
+	return proto.Marshal(nodes)
+}
+
+// Deserialize converts the byte arry back to a trie
+func (t *PatriciaTrie) Deserialize(bs []byte) error {
+	var nodes pb.Tree
+	if err := proto.Unmarshal(bs, &nodes); err != nil {
+		return err
+	}
+
+	t.Root = nodes.Root
+	t.ht = make(map[string]*pb.Node)
+	for _, n := range nodes.List {
+		t.ht[n.Hash] = n
+	}
+
+	return nil
 }
 
 // Upsert will update or add a kv pair to the trie
