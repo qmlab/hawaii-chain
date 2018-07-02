@@ -1,0 +1,10 @@
+syntax = 'proto3';
+package pb;
+
+message Node {
+    int64 Id = 1;
+    string Hash = 2;
+    repeated string Next = 3;
+    string Val = 4;
+    int32 Count = 5;
+}
