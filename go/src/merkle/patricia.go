@@ -69,8 +69,9 @@ func (t *PatriciaTrie) Delete(key string) error {
 
 // Get returns the value to the key. No duplicate is allowed.
 // rtype - string, error
-func (t *PatriciaTrie) Get(key string) (string, error) {
-	return t.getWithPath(t.Root, []byte(key), false)
+func (t *PatriciaTrie) Get(key string) (string, bool) {
+	rst, err := t.getWithPath(t.Root, []byte(key), false)
+	return rst, err == nil
 }
 
 func (t *PatriciaTrie) getWithPath(n *pb.Node, path []byte, odd bool) (string, error) {
@@ -174,11 +175,11 @@ func (t *PatriciaTrie) updateHash(n *pb.Node, isRoot bool) (string, error) {
 func (t *PatriciaTrie) printNode(hash string, ht map[string]*pb.Node, lvl int) {
 	if n, ok := ht[hash]; ok {
 		bs := []byte{}
-		for lvl > 0 {
+		for i := lvl; i > 0; i-- {
 			bs = append(bs, '-')
 		}
 
-		fmt.Printf("%x%v\n", bs, *n)
+		fmt.Printf("[Debug]%s%v\n", string(bs), *n)
 		for _, ns := range n.Next {
 			if len(ns) > 0 {
 				t.printNode(ns, ht, lvl+1)
