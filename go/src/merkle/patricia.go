@@ -83,18 +83,18 @@ func (t *PatriciaTrie) getWithPath(n *pb.Node, path []byte, odd bool) (string, e
 		return n.Val, nil
 	}
 
-	// get the first nimble
-	nimble, path := t.firstNimble(path, odd)
-	nextHash := n.Next[nimble]
+	// get the first nibble
+	nibble, path := t.firstNibble(path, odd)
+	nextHash := n.Next[nibble]
 	next, ok := t.ht[nextHash]
 	if len(nextHash) == 0 || !ok {
-		return "", fmt.Errorf("No child at node %s for the nimble %d", n.Hash, nimble)
+		return "", fmt.Errorf("No child at node %s for the nibble %d", n.Hash, nibble)
 	}
 
 	return t.getWithPath(next, path, !odd)
 }
 
-func (t *PatriciaTrie) firstNimble(path []byte, odd bool) (int, []byte) {
+func (t *PatriciaTrie) firstNibble(path []byte, odd bool) (int, []byte) {
 	var b byte
 	if odd {
 		b = path[0] % 16
@@ -108,32 +108,43 @@ func (t *PatriciaTrie) firstNimble(path []byte, odd bool) (int, []byte) {
 }
 
 // upsertPath adds or updates a path of bytes as a branch to the current node
-func (t *PatriciaTrie) upsertWithPath(n *pb.Node, path []byte, val string, odd, isRoot bool) (string, error) {
+// returns:
+// 1.Hash of the current node. "" means this node is no longer needed and it will be removed by its parent.
+// 2.Hex array for the encoded path. LIFO.
+// 3.NextHash - for building the shortcut encoded path.
+// 4.Error
+func (t *PatriciaTrie) upsertWithPath(n *pb.Node, path []byte, val string, odd, isRoot bool) (string, []byte, string, error) {
 	if len(path) == 0 {
 		n.Val = val
 	} else {
-		// get the first nimble
-		nimble, path := t.firstNimble(path, odd)
+		// get the first nibble
+		nibble, path := t.firstNibble(path, odd)
 
 		// put the hash of next node to the next node
 		// build or rebuild the branch
 		var next *pb.Node
-		if len(n.Next) <= nimble || len(n.Next[nimble]) == 0 {
+		if len(n.Next) <= nibble || len(n.Next[nibble]) == 0 {
 			next = &pb.Node{}
 		} else {
-			next, _ = t.ht[n.Next[nimble]]
+			next, _ = t.ht[n.Next[nibble]]
 		}
 
-		nextHash, err := t.upsertWithPath(next, path, val, !odd, false)
+		nextHash, bs, target, err := t.upsertWithPath(next, path, val, !odd, false)
 		if err != nil {
-			return "", err
+			return "", nil, "", err
 		}
 
-		t.updateChild(n, nimble, nextHash)
+		t.updateChild(n, nibble, nextHash)
+	}
+	// finally, update the hash on the current node
+	newHash, err := t.updateHash(n, isRoot)
+	if err != nil {
+		return "", nil, "", err
 	}
 
-	// finally, update the hash on the current node
-	return t.updateHash(n, isRoot)
+	if len(newHash) == 0 {
+
+	}
 }
 
 func (t *PatriciaTrie) updateChild(n *pb.Node, key int, val string) {
