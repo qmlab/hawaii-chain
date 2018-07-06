@@ -6,6 +6,7 @@ message Node {
     repeated string Next = 2;
     string Val = 3;
     int32 Count = 4;
+    map<string, string> EncodedPaths = 5;
 }
 
 message Tree {

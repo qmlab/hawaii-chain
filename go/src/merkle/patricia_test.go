@@ -63,5 +63,14 @@ func TestSerialize(t *testing.T) {
 	trie2.Deserialize(bs)
 	rst, _ := trie2.Get("key1")
 	assert.Equal(t, "val1", rst)
+	rst, _ = trie2.Get("key2")
 	assert.Equal(t, "val2", rst)
+}
+
+func TestCompress(t *testing.T) {
+	trie := NewPatriciaTrie()
+	trie.Upsert("key1", "val1")
+	trie.Upsert("key2", "val2")
+	trie.Compress()
+	trie.Print()
 }
