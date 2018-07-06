@@ -143,7 +143,6 @@ func (t *PatriciaTrie) getWithPath(n *pb.Node, path []byte, odd bool) (string, e
 		nibble, path = t.firstNibble(path, odd)
 		nextHash = n.Next[int(nibble)]
 	}
-
 	next, ok := t.ht[nextHash]
 	if len(nextHash) == 0 || !ok {
 		return "", fmt.Errorf("No child at node %s for the nibble %d", n.Hash, nibble)
