@@ -34,7 +34,7 @@ func TestInsert2(t *testing.T) {
 	assert.Equal(t, "val2", rst)
 }
 
-func TestUpdate(t *testing.T) {
+func TestUpdateWithoutcompress(t *testing.T) {
 	trie := NewPatriciaTrie()
 	trie.Upsert("key1", "val1")
 	trie.Upsert("key1", "val2")
@@ -42,10 +42,31 @@ func TestUpdate(t *testing.T) {
 	assert.Equal(t, "val2", rst)
 }
 
-func TestDelete(t *testing.T) {
+func TestUpdateWithcompress(t *testing.T) {
+	trie := NewPatriciaTrie()
+	trie.Upsert("key1", "val1")
+	trie.compress()
+	trie.Upsert("key1", "val2")
+	rst, _ := trie.Get("key1")
+	assert.Equal(t, "val2", rst)
+}
+
+func TestDeleteWithoutcompress(t *testing.T) {
 	trie := NewPatriciaTrie()
 	trie.Upsert("key1", "val1")
 	trie.Upsert("key2", "val2")
+	trie.Delete("key1")
+	rst, _ := trie.Get("key2")
+	assert.Equal(t, "val2", rst)
+	rst, ok := trie.Get("key1")
+	assert.False(t, ok)
+}
+
+func TestDeleteWithcompress(t *testing.T) {
+	trie := NewPatriciaTrie()
+	trie.Upsert("key1", "val1")
+	trie.Upsert("key2", "val2")
+	trie.compress()
 	trie.Delete("key1")
 	rst, _ := trie.Get("key2")
 	assert.Equal(t, "val2", rst)
@@ -71,7 +92,7 @@ func TestSerialize(t *testing.T) {
 func TestCompress1(t *testing.T) {
 	trie := NewPatriciaTrie()
 	trie.Upsert("key1", "val1")
-	trie.Compress()
+	trie.compress()
 	rst, _ := trie.Get("key1")
 	assert.Equal(t, "val1", rst)
 }
@@ -80,45 +101,77 @@ func TestCompress2(t *testing.T) {
 	trie := NewPatriciaTrie()
 	trie.Upsert("ka1", "val1")
 	trie.Upsert("ka3", "val3")
-	trie.Compress()
+	trie.compress()
 	rst, _ := trie.Get("ka1")
 	assert.Equal(t, "val1", rst)
 	rst, _ = trie.Get("ka3")
 	assert.Equal(t, "val3", rst)
 }
 
-func BenchmarkUpsert(b *testing.B) {
+func BenchmarkUpsert1000(b *testing.B) {
 	trie := NewPatriciaTrie()
-	var keys []string
-	for i := 0; i < b.N; i++ {
-		k, v := utils.RandStringBytesMaskImprSrc(32), utils.RandStringBytesMaskImprSrc(32)
-		trie.Upsert(k, v)
-		keys = append(keys, k)
-	}
+	trie.BatchSize = 1000
+	updateAll(trie, b)
 }
 
-func BenchmarkUpsertAndGet(b *testing.B) {
+func BenchmarkUpsertAndGet1000(b *testing.B) {
 	trie := NewPatriciaTrie()
-	var keys []string
-	for i := 0; i < b.N; i++ {
-		k, v := utils.RandStringBytesMaskImprSrc(32), utils.RandStringBytesMaskImprSrc(32)
-		trie.Upsert(k, v)
-		keys = append(keys, k)
-	}
-	for _, k := range keys {
-		trie.Get(k)
-	}
+	trie.BatchSize = 1000
+	keys := updateAll(trie, b)
+	getAll(trie, keys)
 }
 
-func BenchmarkUpsertAndGetWithCompress(b *testing.B) {
+func BenchmarkUpsert2000(b *testing.B) {
 	trie := NewPatriciaTrie()
+	trie.BatchSize = 2000
+	updateAll(trie, b)
+}
+
+func BenchmarkUpsertAndGet2000(b *testing.B) {
+	trie := NewPatriciaTrie()
+	trie.BatchSize = 2000
+	keys := updateAll(trie, b)
+	getAll(trie, keys)
+}
+
+func BenchmarkUpsert4000(b *testing.B) {
+	trie := NewPatriciaTrie()
+	trie.BatchSize = 4000
+	updateAll(trie, b)
+}
+
+func BenchmarkUpsertAndGet4000(b *testing.B) {
+	trie := NewPatriciaTrie()
+	trie.BatchSize = 4000
+	keys := updateAll(trie, b)
+	getAll(trie, keys)
+}
+
+func BenchmarkUpsert8000(b *testing.B) {
+	trie := NewPatriciaTrie()
+	trie.BatchSize = 8000
+	updateAll(trie, b)
+}
+
+func BenchmarkUpsertAndGet8000(b *testing.B) {
+	trie := NewPatriciaTrie()
+	trie.BatchSize = 8000
+	keys := updateAll(trie, b)
+	getAll(trie, keys)
+}
+
+func updateAll(trie *PatriciaTrie, b *testing.B) []string {
 	var keys []string
 	for i := 0; i < b.N; i++ {
 		k, v := utils.RandStringBytesMaskImprSrc(32), utils.RandStringBytesMaskImprSrc(32)
 		trie.Upsert(k, v)
 		keys = append(keys, k)
 	}
-	trie.Compress()
+
+	return keys
+}
+
+func getAll(trie *PatriciaTrie, keys []string) {
 	for _, k := range keys {
 		trie.Get(k)
 	}

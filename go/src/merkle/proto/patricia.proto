@@ -11,6 +11,7 @@ message Node {
 
 message Tree {
     Node Root = 1;
-    bool Compressed = 2;    // if compressed with encoded path for memory optimization, cannot update/insert/delete node
-    map<string, Node> Ht = 3; // hash table of hash->node
+    map<string, Node> Ht = 2; // hash table of hash->node
+    int64 LastCompression = 3;  // last known compression point for batch compression
+    int64 BatchSize = 4; // compression batch size
 }
