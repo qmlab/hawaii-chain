@@ -4,6 +4,7 @@ package merkle
 import (
 	"fmt"
 	"merkle/proto"
+	"strings"
 	"utils"
 
 	"github.com/gogo/protobuf/proto"
@@ -17,7 +18,9 @@ type PatriciaTrie struct {
 
 func NewPatriciaTrie() *PatriciaTrie {
 	ht := make(map[string]*pb.Node)
-	rt := &pb.Node{}
+	rt := &pb.Node{
+		EncodedPaths: make(map[string]string),
+	}
 	rt.Hash = "0"
 	ht[rt.Hash] = rt
 	return &PatriciaTrie{rt, false, ht}
@@ -62,7 +65,7 @@ func (t *PatriciaTrie) Upsert(key, val string) error {
 		return fmt.Errorf("Cannot update/insert to a compressed trie")
 	}
 
-	_, err := t.upsertWithPath(t.Root, []byte(key), val, false, true)
+	_, err := t.upsertWithPath(t.Root, utils.ToNibbles(key), val, false, true)
 	return err
 }
 
@@ -72,7 +75,7 @@ func (t *PatriciaTrie) Delete(key string) error {
 		return fmt.Errorf("Cannot delete from a compressed trie")
 	}
 
-	_, err := t.upsertWithPath(t.Root, []byte(key), "", false, true)
+	_, err := t.upsertWithPath(t.Root, utils.ToNibbles(key), "", false, true)
 	return err
 }
 
@@ -82,45 +85,32 @@ func (t *PatriciaTrie) Compress() {
 }
 
 func (t *PatriciaTrie) foldNode(n *pb.Node, nibble byte) ([]byte, string) {
-	seq, target := []byte{}, ""
+	seq, target := []byte{}, n.Hash
 	for i, nextHash := range n.Next {
-		next, _ := t.ht[nextHash]
-		seq, target = t.foldNode(next, byte(i))
-		if len(seq) > 0 {
-			n.EncodedPaths[t.encodePath(seq)] = target
-			n.Next[i] = ""
+		if len(nextHash) > 0 {
+			next, _ := t.ht[nextHash]
+			seq, target = t.foldNode(next, byte(i))
+			if len(seq) > 0 && len(next.Val) == 0 {
+				n.EncodedPaths[string(seq)] = target
+				n.Next[i] = ""
+			}
 		}
 	}
+	if n.Count > 1 {
+		return []byte{nibble}, n.Hash
+	}
+
 	if n.Count == 1 && len(n.Val) == 0 && t.Root != n {
 		delete(t.ht, n.Hash)
-		return append(seq, nibble), target
 	}
 
-	return []byte{}, n.Hash
-}
-
-func (t *PatriciaTrie) encodePath(bs []byte) string {
-	var rst []byte
-	var cur int
-	for i := 0; i < len(bs); i++ {
-		if i%2 == 0 {
-			cur = int(bs[i])
-		} else {
-			cur += int(bs[i]) * 16
-			rst = append([]byte{byte(cur)}, rst...)
-		}
-	}
-	if len(bs)%2 == 1 {
-		rst = append([]byte{byte(cur)}, rst...)
-	}
-
-	return string(rst)
+	return append([]byte{nibble}, seq...), target
 }
 
 // Get returns the value to the key. No duplicate is allowed.
 // rtype - string, error
 func (t *PatriciaTrie) Get(key string) (string, bool) {
-	rst, err := t.getWithPath(t.Root, []byte(key), false)
+	rst, err := t.getWithPath(t.Root, utils.ToNibbles(key), false)
 	return rst, err == nil
 }
 
@@ -135,13 +125,25 @@ func (t *PatriciaTrie) getWithPath(n *pb.Node, path []byte, odd bool) (string, e
 
 	// get the encoded path if any
 	var nibble byte
-	nextHash, ok := n.EncodedPaths[string(path)]
-	if ok {
-		path = []byte{}
-	} else {
+	var ok bool
+	var nextHash string
+	// nextHash, ok := n.EncodedPaths[string(path)]
+	for ep, nh := range n.EncodedPaths {
+		// Get using the shortcurt
+		if strings.HasPrefix(string(path), ep) {
+			ok = true
+			path = path[len(ep):]
+			nextHash = nh
+			if len(ep)%2 == 0 {
+				odd = !odd
+			}
+			break
+		}
+	}
+	if !ok {
 		// get the first nibble
-		nibble, path = t.firstNibble(path, odd)
-		nextHash = n.Next[int(nibble)]
+		nextHash = n.Next[path[0]]
+		path = path[1:]
 	}
 	next, ok := t.ht[nextHash]
 	if len(nextHash) == 0 || !ok {
@@ -151,42 +153,28 @@ func (t *PatriciaTrie) getWithPath(n *pb.Node, path []byte, odd bool) (string, e
 	return t.getWithPath(next, path, !odd)
 }
 
-func (t *PatriciaTrie) firstNibble(path []byte, odd bool) (byte, []byte) {
-	var b byte
-	if odd {
-		b = path[0] % 16
-		path = path[1:]
-	} else {
-		b = path[0] / 16
-		path[0] = path[0] % 16
-	}
-
-	return b, path
-}
-
 // upsertPath adds or updates a path of bytes as a branch to the current node
 func (t *PatriciaTrie) upsertWithPath(n *pb.Node, path []byte, val string, odd, isRoot bool) (string, error) {
 	if len(path) == 0 {
 		n.Val = val
 	} else {
-		// get the first nibble
-		nibble, path := t.firstNibble(path, odd)
-
 		// put the hash of next node to the next node
 		// build or rebuild the branch
 		var next *pb.Node
-		if len(n.Next) <= int(nibble) || len(n.Next[int(nibble)]) == 0 {
-			next = &pb.Node{}
+		if len(n.Next) <= int(path[0]) || len(n.Next[int(path[0])]) == 0 {
+			next = &pb.Node{
+				EncodedPaths: make(map[string]string),
+			}
 		} else {
-			next, _ = t.ht[n.Next[nibble]]
+			next, _ = t.ht[n.Next[path[0]]]
 		}
 
-		nextHash, err := t.upsertWithPath(next, path, val, !odd, false)
+		nextHash, err := t.upsertWithPath(next, path[1:], val, !odd, false)
 		if err != nil {
 			return "", err
 		}
 
-		t.updateChild(n, int(nibble), nextHash)
+		t.updateChild(n, int(path[0]), nextHash)
 	}
 
 	// finally, update the hash on the current node
@@ -241,6 +229,10 @@ func (t *PatriciaTrie) printNode(hash string, ht map[string]*pb.Node, lvl int) {
 			if len(ns) > 0 {
 				t.printNode(ns, ht, lvl+1)
 			}
+		}
+		for p, ns := range n.EncodedPaths {
+			fmt.Printf("[Debug]encoded_path=%v\n", utils.ToInts([]byte(p)))
+			t.printNode(ns, ht, lvl+1)
 		}
 	}
 }

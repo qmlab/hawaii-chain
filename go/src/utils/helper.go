@@ -22,3 +22,21 @@ func GetHash(n *pb.Node) (string, error) {
 	hs := b64.StdEncoding.EncodeToString(h.Sum(nil))
 	return hs, err
 }
+
+func ToNibbles(s string) []byte {
+	var rst []byte
+	bs := []byte(s)
+	for i := 0; i < len(s); i++ {
+		rst = append(rst, bs[i]/16)
+		rst = append(rst, bs[i]%16)
+	}
+	return rst
+}
+
+func ToInts(bs []byte) []int {
+	var rst []int
+	for _, b := range bs {
+		rst = append(rst, int(b))
+	}
+	return rst
+}
