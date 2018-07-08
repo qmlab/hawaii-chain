@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"testing"
+	"utils"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -84,4 +85,41 @@ func TestCompress2(t *testing.T) {
 	assert.Equal(t, "val1", rst)
 	rst, _ = trie.Get("ka3")
 	assert.Equal(t, "val3", rst)
+}
+
+func BenchmarkUpsert(b *testing.B) {
+	trie := NewPatriciaTrie()
+	var keys []string
+	for i := 0; i < b.N; i++ {
+		k, v := utils.RandStringBytesMaskImprSrc(32), utils.RandStringBytesMaskImprSrc(32)
+		trie.Upsert(k, v)
+		keys = append(keys, k)
+	}
+}
+
+func BenchmarkUpsertAndGet(b *testing.B) {
+	trie := NewPatriciaTrie()
+	var keys []string
+	for i := 0; i < b.N; i++ {
+		k, v := utils.RandStringBytesMaskImprSrc(32), utils.RandStringBytesMaskImprSrc(32)
+		trie.Upsert(k, v)
+		keys = append(keys, k)
+	}
+	for _, k := range keys {
+		trie.Get(k)
+	}
+}
+
+func BenchmarkUpsertAndGetWithCompress(b *testing.B) {
+	trie := NewPatriciaTrie()
+	var keys []string
+	for i := 0; i < b.N; i++ {
+		k, v := utils.RandStringBytesMaskImprSrc(32), utils.RandStringBytesMaskImprSrc(32)
+		trie.Upsert(k, v)
+		keys = append(keys, k)
+	}
+	trie.Compress()
+	for _, k := range keys {
+		trie.Get(k)
+	}
 }
