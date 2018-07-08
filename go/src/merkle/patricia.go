@@ -11,9 +11,7 @@ import (
 )
 
 type PatriciaTrie struct {
-	Root       *pb.Node
-	Compressed bool                // if compressed with encoded path for memory optimization, cannot update/insert/delete node
-	ht         map[string]*pb.Node // hash table of hash->node
+	pb.Tree
 }
 
 func NewPatriciaTrie() *PatriciaTrie {
@@ -23,24 +21,24 @@ func NewPatriciaTrie() *PatriciaTrie {
 	}
 	rt.Hash = "0"
 	ht[rt.Hash] = rt
-	return &PatriciaTrie{rt, false, ht}
+	t := &PatriciaTrie{}
+	t.Root = rt
+	t.Ht = ht
+	return t
+}
+
+func (t *PatriciaTrie) Count() int {
+	return len(t.Ht)
 }
 
 // Print will output the trie in dfs order to stdout for debugging
 func (t *PatriciaTrie) Print() {
-	t.printNode(t.Root.Hash, t.ht, 0)
+	t.printNode(t.Root.Hash, t.Ht, 0)
 }
 
 // Serialize converts the trie to a byte array
 func (t *PatriciaTrie) Serialize() ([]byte, error) {
-	nodes := &pb.Tree{
-		Root: t.Root,
-	}
-	for _, n := range t.ht {
-		nodes.List = append(nodes.List, n)
-	}
-
-	return proto.Marshal(nodes)
+	return proto.Marshal(&t.Tree)
 }
 
 // Deserialize converts the byte arry back to a trie
@@ -50,12 +48,7 @@ func (t *PatriciaTrie) Deserialize(bs []byte) error {
 		return err
 	}
 
-	t.Root = nodes.Root
-	t.ht = make(map[string]*pb.Node)
-	for _, n := range nodes.List {
-		t.ht[n.Hash] = n
-	}
-
+	t.Tree = nodes
 	return nil
 }
 
@@ -88,7 +81,7 @@ func (t *PatriciaTrie) foldNode(n *pb.Node, nibble byte) ([]byte, string) {
 	seq, target := []byte{}, n.Hash
 	for i, nextHash := range n.Next {
 		if len(nextHash) > 0 {
-			next, _ := t.ht[nextHash]
+			next, _ := t.Ht[nextHash]
 			seq, target = t.foldNode(next, byte(i))
 			if len(seq) > 0 && len(next.Val) == 0 {
 				n.EncodedPaths[string(seq)] = target
@@ -101,7 +94,7 @@ func (t *PatriciaTrie) foldNode(n *pb.Node, nibble byte) ([]byte, string) {
 	}
 
 	if n.Count == 1 && len(n.Val) == 0 && t.Root != n {
-		delete(t.ht, n.Hash)
+		delete(t.Ht, n.Hash)
 	}
 
 	return append([]byte{nibble}, seq...), target
@@ -127,7 +120,6 @@ func (t *PatriciaTrie) getWithPath(n *pb.Node, path []byte, odd bool) (string, e
 	var nibble byte
 	var ok bool
 	var nextHash string
-	// nextHash, ok := n.EncodedPaths[string(path)]
 	for ep, nh := range n.EncodedPaths {
 		// Get using the shortcurt
 		if strings.HasPrefix(string(path), ep) {
@@ -145,7 +137,7 @@ func (t *PatriciaTrie) getWithPath(n *pb.Node, path []byte, odd bool) (string, e
 		nextHash = n.Next[path[0]]
 		path = path[1:]
 	}
-	next, ok := t.ht[nextHash]
+	next, ok := t.Ht[nextHash]
 	if len(nextHash) == 0 || !ok {
 		return "", fmt.Errorf("No child at node %s for the nibble %d", n.Hash, nibble)
 	}
@@ -166,7 +158,7 @@ func (t *PatriciaTrie) upsertWithPath(n *pb.Node, path []byte, val string, odd, 
 				EncodedPaths: make(map[string]string),
 			}
 		} else {
-			next, _ = t.ht[n.Next[path[0]]]
+			next, _ = t.Ht[n.Next[path[0]]]
 		}
 
 		nextHash, err := t.upsertWithPath(next, path[1:], val, !odd, false)
@@ -206,11 +198,11 @@ func (t *PatriciaTrie) updateHash(n *pb.Node, isRoot bool) (string, error) {
 		return "", err
 	}
 	if len(prev) > 0 {
-		delete(t.ht, prev)
+		delete(t.Ht, prev)
 	}
 
 	if len(newHash) > 0 || isRoot {
-		t.ht[newHash] = n
+		t.Ht[newHash] = n
 	}
 
 	n.Hash = newHash

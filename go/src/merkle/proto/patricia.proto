@@ -11,5 +11,6 @@ message Node {
 
 message Tree {
     Node Root = 1;
-    repeated Node List = 2;
+    bool Compressed = 2;    // if compressed with encoded path for memory optimization, cannot update/insert/delete node
+    map<string, Node> Ht = 3; // hash table of hash->node
 }
