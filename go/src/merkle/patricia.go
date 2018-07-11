@@ -65,10 +65,19 @@ func (t *PatriciaTrie) Deserialize(bs []byte) error {
 
 // Upsert will update or add a kv pair to the trie
 func (t *PatriciaTrie) Upsert(key, val string) error {
+	if t.Zipped {
+		k, err := ZipString(key)
+		if err != nil {
+			return err
+		}
+
+		key = k
+	}
+
 	t.Lock()
 	defer t.Unlock()
 	_, err := t.upsertWithPath(t.Root, utils.ToNibbles(key), val, true)
-	if int64(len(t.Ht))-t.LastCompression > t.BatchSize {
+	if int64(len(t.Ht))-t.LastRadixCompression > t.BatchSize {
 		t.compress()
 	}
 	return err
@@ -76,25 +85,43 @@ func (t *PatriciaTrie) Upsert(key, val string) error {
 
 // Delete will delete a value and update/delete its corresponding branch
 func (t *PatriciaTrie) Delete(key string) error {
+	if t.Zipped {
+		k, err := ZipString(key)
+		if err != nil {
+			return err
+		}
+
+		key = k
+	}
+
 	t.Lock()
 	defer t.Unlock()
 	_, err := t.upsertWithPath(t.Root, utils.ToNibbles(key), "", true)
 	return err
 }
 
-// compress with fold all the nodes with Count==1 into one encoded path to save space and reduce search time
-func (t *PatriciaTrie) compress() {
-	t.foldNode(t.Root, ' ')
-	t.LastCompression = int64(len(t.Ht))
-}
-
 // Get returns the value to the key. No duplicate is allowed.
 // rtype - string, error
 func (t *PatriciaTrie) Get(key string) (string, bool) {
+	if t.Zipped {
+		k, err := ZipString(key)
+		if err != nil {
+			return "", false
+		}
+
+		key = k
+	}
+
 	t.RLock()
 	defer t.RUnlock()
 	rst, err := t.getWithPath(t.Root, utils.ToNibbles(key))
 	return rst, err == nil
+}
+
+// compress with fold all the nodes with Count==1 into one encoded path to save space and reduce search time
+func (t *PatriciaTrie) compress() {
+	t.foldNode(t.Root, ' ')
+	t.LastRadixCompression = int64(len(t.Ht))
 }
 
 func (t *PatriciaTrie) foldNode(n *pb.Node, nibble byte) ([]byte, string) {

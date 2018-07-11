@@ -12,6 +12,7 @@ message Node {
 message Tree {
     Node Root = 1;
     map<string, Node> Ht = 2; // hash table of hash->node
-    int64 LastCompression = 3;  // last known compression point for batch compression
+    int64 LastRadixCompression = 3;  // last known radix compression point for batch compression
     int64 BatchSize = 4; // compression batch size
+    bool Zipped = 5; // Whether the keys and values are zipped
 }

@@ -34,7 +34,7 @@ func TestInsert2(t *testing.T) {
 	assert.Equal(t, "val2", rst)
 }
 
-func TestUpdateWithoutcompress(t *testing.T) {
+func TestUpdateWithoutCompress(t *testing.T) {
 	trie := NewPatriciaTrie()
 	trie.Upsert("key1", "val1")
 	trie.Upsert("key1", "val2")
@@ -42,7 +42,7 @@ func TestUpdateWithoutcompress(t *testing.T) {
 	assert.Equal(t, "val2", rst)
 }
 
-func TestUpdateWithcompress(t *testing.T) {
+func TestUpdateWithCompress(t *testing.T) {
 	trie := NewPatriciaTrie()
 	trie.Upsert("key1", "val1")
 	trie.compress()
