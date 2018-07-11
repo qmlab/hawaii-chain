@@ -1,1 +1,1 @@
-# qmblockchain
+# Hawaii-chain
