@@ -26,7 +26,8 @@ func NewPatriciaTrie() *PatriciaTrie {
 	}
 	t.Ht = make(map[string]*pb.Node)
 	t.Ht["0"] = t.Root
-	t.BatchSize = 2000
+	t.BatchSize = 4000
+	t.Zipped = true
 	return t
 }
 
