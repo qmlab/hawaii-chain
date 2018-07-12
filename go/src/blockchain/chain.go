@@ -22,37 +22,23 @@ type BlockChain struct {
 func NewBlockChain(addr string) *BlockChain {
 	bc := &BlockChain{}
 	bc.Usr = &pb.User{Addr: addr}
-	bc.Blocks = append(bc.Blocks, &pb.Block{Index: 0})
+	bc.Blocks = append(bc.Blocks, &pb.Block{Index: 0, Proof: 0})
 	return bc
-}
-
-// AddTransaction creates a new transactions and put it into open tx list
-func (bc *BlockChain) AddTransaction(r string, v float32) {
-	// Validate the sender account value
-	// Create transaction into open transaction
-	tx := pb.Transaction{
-		Sender:    bc.Usr.Addr,
-		Recipient: r,
-		Val:       v,
-	}
-
-	bc.OpenTxs = append(bc.OpenTxs, &tx)
 }
 
 // MineBlock adds open transactions to the blockchain after validation
 func (bc *BlockChain) MineBlock() {
-	lastBlock := bc.Blocks[len(bc.Blocks)-1]
-	lastProof := POW(lastBlock.Proof, int(bc.Difficulty))
-	proof := POW(lastProof, int(bc.Difficulty))
+	proof := pow(bc.Blocks[len(bc.Blocks)-1].Proof, int(bc.Difficulty))
 	bc.RWMutex.Lock()
 	defer bc.RWMutex.Unlock()
-	bc.AddNewBlock(proof, lastBlock)
+	bc.addNewBlock(proof)
 	bc.OpenTxs = []*pb.Transaction{}
 }
 
-func (bc *BlockChain) AddNewTransaction(sender, recipient string, val float32) {
+// AddTransaction creates a new transaction and add it to the open Txs list
+func (bc *BlockChain) AddTransaction(recipient string, val float32) string {
 	tx := &pb.Transaction{
-		Sender:    sender,
+		Sender:    bc.Usr.Addr,
 		Recipient: recipient,
 		Val:       val,
 		Timestamp: time.Now().UnixNano(),
@@ -62,9 +48,30 @@ func (bc *BlockChain) AddNewTransaction(sender, recipient string, val float32) {
 	bc.RWMutex.Lock()
 	defer bc.RWMutex.Unlock()
 	bc.OpenTxs = append(bc.OpenTxs, tx)
+	return tx.Id
 }
 
-func (bc *BlockChain) AddNewBlock(proof int64, lastBlock *pb.Block) {
+// GetTransaction retrieves the transaction from the merkle trie
+func (bc *BlockChain) GetTransaction(Id string) *pb.Transaction {
+	for _, block := range bc.Blocks {
+		if block.Txs != nil {
+			t := merkle.NewPatriciaTrie()
+			t.Tree = *block.Txs
+			if v, ok := t.Get(Id); ok {
+				var tx pb.Transaction
+				err := proto.Unmarshal([]byte(v), &tx)
+				if err == nil {
+					return &tx
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (bc *BlockChain) addNewBlock(proof int64) {
+	lastBlock := bc.Blocks[len(bc.Blocks)-1]
 	block := &pb.Block{
 		Index:     lastBlock.Index + 1,
 		Timestamp: time.Now().UnixNano(),
@@ -74,7 +81,7 @@ func (bc *BlockChain) AddNewBlock(proof int64, lastBlock *pb.Block) {
 
 	txs := merkle.NewPatriciaTrie()
 	for _, tx := range bc.OpenTxs {
-		if data, err := proto.Marshal(tx); err != nil {
+		if data, err := proto.Marshal(tx); err == nil {
 			txs.Upsert(tx.Id, string(data))
 		}
 	}
@@ -88,7 +95,7 @@ func (bc *BlockChain) AddNewBlock(proof int64, lastBlock *pb.Block) {
 }
 
 // Validation of sha256(last_proof+proof) has the first N bytes as '0's
-func POW(lastProof int64, difficulty int) int64 {
+func pow(lastProof int64, difficulty int) int64 {
 	var proof int64 = 0
 	for !IsValidProof(lastProof, proof, difficulty) {
 		proof++
@@ -98,7 +105,7 @@ func POW(lastProof int64, difficulty int) int64 {
 }
 
 func IsValidProof(lastProof, proof int64, difficulty int) bool {
-	guess := fmt.Sprintf("%d%d", lastProof, proof)
+	guess := fmt.Sprintf("%d%d%d", lastProof, proof, time.Now().UnixNano())
 	hash := utils.HashBytes([]byte(guess))
 	for i := 0; i < difficulty; i++ {
 		if hash[i] != '0' {
