@@ -1,0 +1,33 @@
+syntax = 'proto3';
+package pb;
+import "patricia.proto";
+
+message Transaction {
+    string Id = 1;
+    string Sender = 2;
+    string Recipient = 3;
+    float Val = 4;
+    int64 Timestamp = 5;
+}
+
+message Block {
+    int32 Index = 1;
+    string Hash = 2;
+    string PrevHash = 3;
+    int64 Proof = 4;
+    int64 Timestamp = 5;
+    Tree Txs = 6;
+    Tree Results = 7;
+    Tree Status = 8;
+}
+
+message User {
+    string Addr = 1;
+}
+
+message Chain {
+    repeated Block Blocks = 1;
+    repeated Transaction OpenTxs = 2;
+    int32 Difficulty = 3;
+    User Usr = 4;
+}

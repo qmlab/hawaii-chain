@@ -5,7 +5,7 @@ package merkle
 // The design goal SLA is to support over 5k inserts/sec and 200k gets/sec
 import (
 	"fmt"
-	"merkle/proto"
+	"proto"
 	"strings"
 	"sync"
 	"utils"

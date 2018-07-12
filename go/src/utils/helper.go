@@ -1,10 +1,10 @@
 package utils
 
 import (
-	"crypto/sha1"
+	"crypto/sha256"
 	b64 "encoding/base64"
 	"math/rand"
-	"merkle/proto"
+	"proto"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -14,15 +14,23 @@ func GetHash(n *pb.Node) (string, error) {
 	if n.Count == 0 && len(n.Val) == 0 {
 		return "", nil
 	}
-	data, err := proto.Marshal(n)
+	return Hash(n)
+}
+
+func Hash(msg proto.Message) (string, error) {
+	data, err := proto.Marshal(msg)
 	if err != nil {
 		return "", err
 	}
 
-	h := sha1.New()
+	return HashBytes(data), nil
+}
+
+func HashBytes(data []byte) string {
+	h := sha256.New()
 	h.Write(data)
 	hs := b64.StdEncoding.EncodeToString(h.Sum(nil))
-	return hs, err
+	return hs
 }
 
 func ToNibbles(s string) []byte {
