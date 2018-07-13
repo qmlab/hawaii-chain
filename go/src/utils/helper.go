@@ -26,6 +26,11 @@ func Hash(msg proto.Message) (string, error) {
 	return HashBytes(data), nil
 }
 
+func HashBlock(block *pb.Block) string {
+	raw := block.Txs.Root.Hash + block.Balances.Root.Hash
+	return HashBytes([]byte(raw))
+}
+
 func HashBytes(data []byte) string {
 	h := sha256.New()
 	h.Write(data)

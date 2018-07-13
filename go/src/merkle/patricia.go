@@ -6,6 +6,7 @@ package merkle
 import (
 	"fmt"
 	"proto"
+	"strconv"
 	"strings"
 	"sync"
 	"utils"
@@ -84,6 +85,11 @@ func (t *PatriciaTrie) Upsert(key, val string) error {
 	return err
 }
 
+// UpsertFloat will update or add a kv pair to the trie, where v is a float
+func (t *PatriciaTrie) UpsertFloat(key string, val float64) error {
+	return t.Upsert(key, fmt.Sprintf("%f", val))
+}
+
 // Delete will delete a value and update/delete its corresponding branch
 func (t *PatriciaTrie) Delete(key string) error {
 	if t.Zipped {
@@ -117,6 +123,18 @@ func (t *PatriciaTrie) Get(key string) (string, bool) {
 	defer t.RUnlock()
 	rst, err := t.getWithPath(t.Root, utils.ToNibbles(key))
 	return rst, err == nil
+}
+
+// GetFloat returns the value to the key. No duplicate is allowed.
+// rtype - float64, error
+func (t *PatriciaTrie) GetFloat(key string) (float64, bool) {
+	if v, ok := t.Get(key); ok {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f, true
+		}
+	}
+
+	return 0.0, false
 }
 
 // compress with fold all the nodes with Count==1 into one encoded path to save space and reduce search time

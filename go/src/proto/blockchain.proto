@@ -6,8 +6,9 @@ message Transaction {
     string Id = 1;
     string Sender = 2;
     string Recipient = 3;
-    float Val = 4;
+    double Val = 4;
     int64 Timestamp = 5;
+    string Status = 6;
 }
 
 message Block {
@@ -17,8 +18,7 @@ message Block {
     int64 Proof = 4;
     int64 Timestamp = 5;
     Tree Txs = 6;
-    Tree Results = 7;
-    Tree Status = 8;
+    Tree Balances = 7;
 }
 
 message User {
