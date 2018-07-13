@@ -171,8 +171,3 @@ func IsValidProof(lastProof, proof int64, difficulty int) bool {
 
 	return true
 }
-
-// PrintBlockChain prints out the entire chain for debugging purpose
-func (bc *BlockChain) PrintBlockChain() {
-	fmt.Printf("[Debug]%v\n", bc.Blocks)
-}
